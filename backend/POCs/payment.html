@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stripe Payment Test</title>
+    <script src="https://js.stripe.com/v3/"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .payment-form {
+            background: #f8f9fa;
+            padding: 30px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        #card-element {
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .loading { background: #fff3cd; color: #856404; }
+    </style>
+</head>
+<body>
+    <h1>Test Stripe Payment</h1>
+    
+    <!-- One-time Payment Form -->
+    <div class="payment-form">
+        <h3>One-time Payment ($20.00)</h3>
+        <form id="payment-form">
+            <div id="card-element">
+                <!-- Stripe Elements will create form elements here -->
+            </div>
+            <button id="submit-payment" type="submit">Pay $20.00</button>
+        </form>
+        <div id="payment-result"></div>
+    </div>
+
+    <!-- Subscription Form -->
+    <div class="payment-form">
+        <h3>Monthly Subscription ($9.99/month)</h3>
+        <form id="subscription-form">
+            <input type="email" id="customer-email" placeholder="Enter your email" required style="width: 100%; padding: 10px; margin: 10px 0;">
+            <div id="subscription-card-element">
+                <!-- Stripe Elements will create form elements here -->
+            </div>
+            <button id="submit-subscription" type="submit">Subscribe $9.99/month</button>
+        </form>
+        <div id="subscription-result"></div>
+    </div>
+
+    <script>
+        let stripe;
+        let elements;
+        let cardElement;
+        let subscriptionElements;
+        let subscriptionCardElement;
+
+        // Initialize Stripe
+        async function initStripe() {
+            try {
+                // Get publishable key from your API
+                const response = await fetch('http://localhost:8000/config');
+                const config = await response.json();
+                
+                stripe = Stripe(config.publishable_key);
+                
+                // Create Elements instances
+                elements = stripe.elements();
+                subscriptionElements = stripe.elements();
+                
+                // Create card elements
+                cardElement = elements.create('card');
+                cardElement.mount('#card-element');
+                
+                subscriptionCardElement = subscriptionElements.create('card');
+                subscriptionCardElement.mount('#subscription-card-element');
+                
+                console.log('Stripe initialized successfully');
+            } catch (error) {
+                console.error('Error initializing Stripe:', error);
+                showResult('payment-result', 'Error initializing payment system', 'error');
+            }
+        }
+
+        // Handle one-time payment
+        document.getElementById('payment-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const submitButton = document.getElementById('submit-payment');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
+            
+            try {
+                // Create payment intent
+                const response = await fetch('http://localhost:8000/payments/create-intent', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        "amount": 10,
+                        "currency": "usd",
+                        "customer_id": "cus_Sti4bZsdpkzvys",
+                        "metadata": {}
+                    })
+                });
+                
+                const { client_secret } = await response.json();
+                
+                // Confirm payment with Stripe
+                const { error, paymentIntent } = await stripe.confirmCardPayment(client_secret, {
+                    payment_method: {
+                        card: cardElement
+                    }
+                });
+                
+                if (error) {
+                    showResult('payment-result', `Payment failed: ${error.message}`, 'error');
+                } else {
+                    showResult('payment-result', `Payment successful! Payment ID: ${paymentIntent.id}`, 'success');
+                }
+            } catch (error) {
+                showResult('payment-result', `Error: ${error.message}`, 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Pay $20.00';
+            }
+        });
+
+        // Handle subscription
+        document.getElementById('subscription-form').addEventListener('submit', async (event) => {
+            event.preventDefault();
+            
+            const submitButton = document.getElementById('submit-subscription');
+            const email = document.getElementById('customer-email').value;
+            
+            submitButton.disabled = true;
+            submitButton.textContent = 'Processing...';
+            
+            try {
+                // First, create a customer
+                const customerResponse = await fetch('http://localhost:8000/customers/create', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: email,
+                        name: email.split('@')[0]
+                    })
+                });
+                
+                const customer = await customerResponse.json();
+                console.log('Customer created:', customer);
+                
+                // Note: You'll need to create a price in Stripe Dashboard first
+                // For demo purposes, using a placeholder price_id
+                // Replace 'price_1234567890' with your actual price ID from Stripe Dashboard
+                
+                showResult('subscription-result', 
+                    'Customer created! To complete subscription setup, you need to:\n' +
+                    '1. Create a product and price in your Stripe Dashboard\n' +
+                    '2. Use the price_id in the subscription creation call\n' +
+                    `Customer ID: ${customer.customer_id}`, 'success');
+                
+            } catch (error) {
+                showResult('subscription-result', `Error: ${error.message}`, 'error');
+            } finally {
+                submitButton.disabled = false;
+                submitButton.textContent = 'Subscribe $9.99/month';
+            }
+        });
+
+        // Utility function to show results
+        function showResult(elementId, message, type) {
+            const resultElement = document.getElementById(elementId);
+            resultElement.textContent = message;
+            resultElement.className = `result ${type}`;
+        }
+
+        // Initialize when page loads
+        initStripe();
+    </script>
+</body>
+</html>

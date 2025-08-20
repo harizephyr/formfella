@@ -1,0 +1,33 @@
+# Ignore all PDF files
+*.pdf
+
+# Ignore all PNG files
+*.png
+
+# Environment variables
+.env
+*.pyc
+
+venv
+frontend.zip
+
+# Remove any incorrect patterns
+
+# Ignore all PDF files
+*.pdf
+
+# Ignore all PNG files
+*.png
+
+# Environment variables
+.env
+.env.local
+*.pyc
+
+venv
+frontend.zip
+
+# node
+node_modules
+
+# Remove any incorrect patterns

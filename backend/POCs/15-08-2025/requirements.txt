@@ -1,0 +1,9 @@
+boto3
+pdf2image
+pillow
+dotenv
+reportlab
+PyPDF2
+
+
+# source "D:/Projects/Microsaas/formfella/venv/Scripts/activate"

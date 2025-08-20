@@ -1,0 +1,27 @@
+boto3
+pdf2image
+pillow
+dotenv
+reportlab
+PyPDF2
+
+
+openai
+fastapi
+uvicorn
+python-multipart
+
+#auth
+starlette
+authlib
+itsdangerous
+pydantic_settings
+sqlalchemy
+psycopg2
+
+
+
+# source "D:/Projects/Microsaas/formfella/venv/Scripts/activate" && cd backend/app && python main.py
+# cd backend/app && python main.py
+# cd frontend && npm run dev
+stripe
