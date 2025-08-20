@@ -33,7 +33,7 @@ export default function RegisterPage() {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ username: email, password:password, full_name: fullName }),
+      body: JSON.stringify({ username: email, password:password, name: fullName }),
     })
     const data = await response.json()
     console.log(data)
@@ -41,7 +41,7 @@ export default function RegisterPage() {
       setError('')
       toast.success('User registered successfully. Please Verify your email to login. ')
       setTimeout(() => {
-        window.location.href = '/login'
+        window.location.href = '/otp?email=' + email
       }, 3000)
     } else {
       setError(data.error)

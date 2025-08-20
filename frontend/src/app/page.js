@@ -382,6 +382,15 @@ export default function Home() {
                   <Button 
                     className={`w-full ${plan.popular ? 'bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600' : ''}`}
                     variant={plan.popular ? "default" : "outline"}
+                    onClick={() => {
+                      if (plan.buttonText === "Get Started Free") {
+                        window.location.href = "/dashboard";
+                      }else if (plan.buttonText === "Contact Sales") {
+                        window.location.href = "mailto:thugaltechnologies@gmail.com";
+                      }else {
+                        window.location.href = "/signup";
+                      }
+                    }}
                   >
                     {plan.buttonText}
                   </Button>

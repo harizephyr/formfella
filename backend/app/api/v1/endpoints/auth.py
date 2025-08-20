@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 # from api.v1.endpoints.payment import get_credits
 from db.crud.credits import get_credits,add_credits
 from db.base import get_db
+from db.models.credits import Credits
 
 logger = logging.getLogger(__name__)
 
@@ -357,7 +358,7 @@ class AuthenticateUserRequest(BaseModel):
 
 router = APIRouter()
 @router.post("/sign-up")
-def sign_up(request: SignUpRequest):
+def sign_up(request: SignUpRequest, db: Session = Depends(get_db)):
 
     auth = CognitoAuth(
         user_pool_id='us-east-1_bdBzy57Vz',
@@ -366,18 +367,27 @@ def sign_up(request: SignUpRequest):
         region='us-east-1'
     )
     result = auth.sign_up(request.username, request.password,request.username, request.name)
-    add_credits(request.username, 50)
+
+    # add new row to credits table
+    user = db.query(Credits).filter(Credits.email == request.username).first()
+    if not user:
+        db.add(Credits(email=request.username, credits=50))
+        db.commit()
     return result
 
+class ConfirmSignUpRequest(BaseModel):
+    username: str
+    confirmation_code: str
+
 @router.post("/confirm-sign-up")
-def confirm_sign_up(username: str, confirmation_code: str):
+def confirm_sign_up(request: ConfirmSignUpRequest):
     auth = CognitoAuth(
         user_pool_id='us-east-1_bdBzy57Vz',
         client_id='1j9ja7bfvr94bf86n0o17sklcv',
         client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
         region='us-east-1'
     )
-    result = auth.confirm_sign_up(username, confirmation_code)
+    result = auth.confirm_sign_up(request.username, request.confirmation_code)
     return result
 
 @router.post("/authenticate-user")
@@ -499,6 +509,7 @@ def me(request: Request, db: Session = Depends(get_db)):
 
 def get_email(request: Request):
     auth_header = request.headers.get("Authorization")
+    print(auth_header)
     if not auth_header or not auth_header.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     

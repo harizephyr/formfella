@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: 'AI PDF Form Filler - Smart Document Processing',
+  title: 'FormFella - Document Intelligence For You',
   description: 'Upload PDFs, let AI extract form fields, and fill them intelligently. The future of document processing.',
 };
 

@@ -17,6 +17,8 @@ from db.crud.credits import update_credits,get_credits
 from sqlalchemy.orm import Session
 router = APIRouter()
 from api.v1.endpoints.auth import get_email
+from fastapi import BackgroundTasks
+from time import sleep
 # Initialize AWS Textract client
 textract = boto3.client("textract", region_name=settings.AWS_DEFAULT_REGION, aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
@@ -273,11 +275,14 @@ async def process_pdf_and_get_questions(request: Request,files: List[UploadFile]
 
     # reduce 5 credits for each pdf processed
     reduce_credits(5, credits, email, db)
+
+    #remove formid folder
+    shutil.rmtree(OUTPUT_DIR / form_id)
         
     return responses
 
 @router.post("/api/submit/{form_id}")
-async def submit_answers_and_get_pdf(form_id: str, submission: FormSubmission):
+async def submit_answers_and_get_pdf(form_id: str, background_tasks: BackgroundTasks, submission: FormSubmission):
     """
     Submit answers and get the filled PDF for download.
     """
@@ -295,12 +300,23 @@ async def submit_answers_and_get_pdf(form_id: str, submission: FormSubmission):
     processor = PDFFormProcessor(form_id, pdf_path)
     output_path = processor.create_filled_pdf(responses)
     
+
+    # add background task to remove this file after 2 mins
+    background_tasks.add_task(remove_file, OUTPUT_DIR / f"filled_{form_id}.pdf")
+    
     # Return filled PDF
     return FileResponse(
         path=output_path,
         filename=f"filled_form_{form_id}.pdf",
         media_type="application/pdf"
     )
+
+def remove_file(file_path):
+    try:
+        sleep(10)
+        os.remove(file_path)
+    except Exception as e:
+        print(f"Failed to remove file {file_path}: {str(e)}")
 
 @router.get("/")
 async def health_check():

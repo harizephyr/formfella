@@ -8,6 +8,10 @@ from typing import Optional
 import logging
 from dotenv import load_dotenv
 from core.config.settings import settings
+from db.crud.credits import add_credits
+from api.v1.endpoints.auth import get_email
+from db.base import get_db
+from sqlalchemy.orm import Session
 # Load environment variables
 load_dotenv()
 
@@ -331,9 +335,10 @@ class CheckoutSessionCreate(BaseModel):
 
 
 @router.post("/checkout/create-session")
-async def create_checkout_session(checkout_data: CheckoutSessionCreate):
+async def create_checkout_session(request: Request, checkout_data: CheckoutSessionCreate):
     """Create a Checkout Session that redirects to Stripe-hosted payment page"""
     try:
+        email = get_email(request)
         session_params = {
             "success_url": checkout_data.success_url,
             "cancel_url": checkout_data.cancel_url,
@@ -342,7 +347,7 @@ async def create_checkout_session(checkout_data: CheckoutSessionCreate):
         
         # Add customer email if provided
         if checkout_data.customer_email:
-            session_params["customer_email"] = checkout_data.customer_email
+            session_params["customer_email"] = email
         
         # Configure based on payment mode
         if checkout_data.mode == "payment":
@@ -384,10 +389,17 @@ async def create_checkout_session(checkout_data: CheckoutSessionCreate):
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/checkout/session/{session_id}")
-async def get_checkout_session(session_id: str):
+async def get_checkout_session(request: Request, session_id: str, db: Session = Depends(get_db)):
     """Get checkout session details and status"""
+    email = get_email(request)
+    if not email:
+        raise HTTPException(status_code=401, detail="Unauthorized")
     try:
         session = stripe.checkout.Session.retrieve(session_id)
+
+        if session.payment_status == "paid":
+            # add 500 credits to user
+            add_credits(500, email, db)
         return {
             "session_id": session.id,
             "payment_status": session.payment_status,

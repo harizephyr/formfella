@@ -113,6 +113,11 @@ useEffect(() => {
                     <Label href="/dashboard/credits" className="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2">
                       Credits: {credits}
                     </Label>
+
+                    {/* subscription */}
+                    <Link href="/dashboard/pricing" className="w-full text-left px-4 py-2 text-sm hover:bg-muted flex items-center gap-2">
+                      Upgrade
+                    </Link>
                     
                     <button
                       onClick={handleLogout}
