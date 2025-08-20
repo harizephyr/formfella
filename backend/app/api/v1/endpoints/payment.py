@@ -12,6 +12,7 @@ from db.crud.credits import add_credits
 from api.v1.endpoints.auth import get_email
 from db.base import get_db
 from sqlalchemy.orm import Session
+from schemas.payment import PaymentIntentCreate, CustomerCreate, CheckoutSessionCreate,SubscriptionCreate
 # Load environment variables
 load_dotenv()
 
@@ -27,22 +28,6 @@ STRIPE_PUBLISHABLE_KEY = settings.STRIPE_PUBLISHABLE_KEY
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Pydantic models
-class PaymentIntentCreate(BaseModel):
-    amount: int  # Amount in cents
-    currency: str = "usd"
-    customer_id: Optional[str] = None
-    metadata: Optional[dict] = {}
-
-class SubscriptionCreate(BaseModel):
-    customer_id: str
-    price_id: str  # Stripe price ID
-    trial_period_days: Optional[int] = None
-
-class CustomerCreate(BaseModel):
-    email: str
-    name: Optional[str] = None
-    metadata: Optional[dict] = {}
 
 # Dependency to verify Stripe webhook signature
 async def verify_webhook_signature(request: Request):
@@ -322,16 +307,6 @@ async def refund_payment(payment_intent_id: str, amount: Optional[int] = None):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "service": "stripe-payment-api"}
-
-
-class CheckoutSessionCreate(BaseModel):
-    price_id: Optional[str] = None  # For subscriptions
-    amount: Optional[int] = None  # For one-time payments (in cents)
-    currency: str = "usd"
-    customer_email: Optional[str] = None
-    success_url: str
-    cancel_url: str
-    mode: str = "payment"  # "payment" for one-time, "subscription" for recurring
 
 
 @router.post("/checkout/create-session")

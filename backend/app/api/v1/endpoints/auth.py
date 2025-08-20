@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 from db.crud.credits import get_credits,add_credits
 from db.base import get_db
 from db.models.credits import Credits
-
+from schemas.auth import SignUpRequest, AuthenticateUserRequest, ConfirmSignUpRequest
+from core.config.settings import settings
 logger = logging.getLogger(__name__)
 
 class CognitoAuth:
@@ -347,14 +348,7 @@ class CognitoAuth:
 
 # api
 
-class SignUpRequest(BaseModel):
-    username: str
-    password: str
-    name: str = None
 
-class AuthenticateUserRequest(BaseModel):
-    username: str
-    password: str
 
 router = APIRouter()
 @router.post("/sign-up")
@@ -375,62 +369,44 @@ def sign_up(request: SignUpRequest, db: Session = Depends(get_db)):
         db.commit()
     return result
 
-class ConfirmSignUpRequest(BaseModel):
-    username: str
-    confirmation_code: str
+
+
+def cognito_auth():
+    auth = CognitoAuth(
+        user_pool_id=settings.COGNITO_USER_POOL_ID,
+        client_id=settings.COGNITO_CLIENT_ID,
+        client_secret=settings.COGNITO_CLIENT_SECRET,
+        region=settings.AWS_DEFAULT_REGION
+    )
+    return auth
 
 @router.post("/confirm-sign-up")
 def confirm_sign_up(request: ConfirmSignUpRequest):
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     result = auth.confirm_sign_up(request.username, request.confirmation_code)
     return result
 
 @router.post("/authenticate-user")
 def authenticate_user(request: AuthenticateUserRequest):
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     result = auth.authenticate_user(request.username, request.password)
     return result
 
 @router.post("/refresh-token")
 def refresh_access_token(refresh_token: str):
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     result = auth.refresh_access_token(refresh_token)
     return result
 
 @router.post("/forgot-password")
 def forgot_password(username: str):
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     result = auth.forgot_password(username)
     return result
 
 @router.post("/confirm-forgot-password")
 def confirm_forgot_password(username: str, confirmation_code: str, new_password: str):
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     result = auth.confirm_forgot_password(username, confirmation_code, new_password)
     return result
 
@@ -446,12 +422,7 @@ def protected_route(request: Request):
         raise HTTPException(status_code=401, detail="Unauthorized")
     
     try:
-        auth = CognitoAuth(
-            user_pool_id='us-east-1_bdBzy57Vz',
-            client_id='1j9ja7bfvr94bf86n0o17sklcv',
-            client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',  # Optional
-            region='us-east-1'
-        )
+        auth = cognito_auth()
         result = auth.validate_token(token)
         if result['success']:
             return True
@@ -467,12 +438,7 @@ def logout(request: Request):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = auth_header.split(" ")[1]
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     
     try:
         result = auth.logout(token=token)
@@ -491,12 +457,7 @@ def me(request: Request, db: Session = Depends(get_db)):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = auth_header.split(" ")[1]
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     
     try:
         result = auth.get_user_details(token=token)
@@ -514,12 +475,7 @@ def get_email(request: Request):
         raise HTTPException(status_code=401, detail="Missing or invalid authorization header")
     
     token = auth_header.split(" ")[1]
-    auth = CognitoAuth(
-        user_pool_id='us-east-1_bdBzy57Vz',
-        client_id='1j9ja7bfvr94bf86n0o17sklcv',
-        client_secret='1hgfa89g5n5n3m877b8e7dvaoqoef9dmu2nl8bv627r482diu2tm',
-        region='us-east-1'
-    )
+    auth = cognito_auth()
     
     try:
         result = auth.get_user_details(token=token)

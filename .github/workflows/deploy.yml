@@ -1,0 +1,209 @@
+name: Deploy to AWS App Runner
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'backend/**'
+      - 'frontend/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+env:
+  AWS_REGION: us-east-1
+  AWS_ACCOUNT_ID: "106530302676"
+  ECR_BACKEND_REPO: formfella-backend
+  ECR_FRONTEND_REPO: formfella-frontend
+  AR_BACKEND_SERVICE: formfella-backend
+  AR_FRONTEND_SERVICE: formfella-frontend
+  BACKEND_PORT: "8080"
+  FRONTEND_PORT: "3000"
+  APP_RUNNER_ECR_ACCESS_ROLE_ARN: arn:aws:iam::106530302676:role/apprunner-ecr-access-role
+  APP_RUNNER_INSTANCE_ROLE_ARN: arn:aws:iam::106530302676:role/apprunner-instance-role-formfella
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::106530302676:role/GitHubActionsDeployRole-ZionClouds-AWS-formfella
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Compute image tags
+        id: vars
+        run: |
+          echo "sha_tag=${GITHUB_SHA::7}" >> $GITHUB_OUTPUT
+          echo "backend_repo=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_BACKEND_REPO }}" >> $GITHUB_OUTPUT
+          echo "frontend_repo=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_FRONTEND_REPO }}" >> $GITHUB_OUTPUT
+
+      - name: Ensure ECR repositories exist
+        run: |
+          aws ecr describe-repositories --repository-names "${{ env.ECR_BACKEND_REPO }}" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "${{ env.ECR_BACKEND_REPO }}" --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE
+          
+          aws ecr describe-repositories --repository-names "${{ env.ECR_FRONTEND_REPO }}" >/dev/null 2>&1 || \
+            aws ecr create-repository --repository-name "${{ env.ECR_FRONTEND_REPO }}" --image-scanning-configuration scanOnPush=true --image-tag-mutability MUTABLE
+
+      # Build & Push Backend
+      - name: Build & Push Backend Docker Image
+        if: contains(github.event.changes, 'backend/') || github.event_name == 'workflow_dispatch'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          IMG="${{ steps.vars.outputs.backend_repo }}"
+          TAG="${{ steps.vars.outputs.sha_tag }}"
+          docker build --no-cache -t "$IMG:$TAG" -t "$IMG:latest" ./backend
+          docker push "$IMG:$TAG"
+          docker push "$IMG:latest"
+
+      # Build & Push Frontend
+      - name: Build & Push Frontend Docker Image
+        if: contains(github.event.changes, 'frontend/') || github.event_name == 'workflow_dispatch'
+        env:
+          DOCKER_BUILDKIT: 1
+        run: |
+          IMG="${{ steps.vars.outputs.frontend_repo }}"
+          TAG="${{ steps.vars.outputs.sha_tag }}"
+          docker build --no-cache -t "$IMG:$TAG" -t "$IMG:latest" ./frontend
+          docker push "$IMG:$TAG"
+          docker push "$IMG:latest"
+
+      # Deploy Backend to App Runner
+      - name: Deploy Backend to App Runner
+        id: backend-deploy
+        if: contains(github.event.changes, 'backend/') || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          
+          SERVICE_NAME="${{ env.AR_BACKEND_SERVICE }}"
+          IMAGE="${{ steps.vars.outputs.backend_repo }}:latest"
+          
+          # Check if service exists
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='${SERVICE_NAME}'].ServiceArn | [0]" \
+            --output text)
+
+          # Prepare source configuration
+          SRC_CFG=$(jq -n \
+            --arg img "$IMAGE" \
+            --arg role "${{ env.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}" \
+            --arg port "${{ env.BACKEND_PORT }}" '
+          {
+            ImageRepository: {
+              ImageIdentifier: $img,
+              ImageRepositoryType: "ECR",
+              ImageConfiguration: {
+                Port: $port,
+                RuntimeEnvironmentVariables: {
+                  NODE_ENV: "production",
+                  PORT: $port
+                }
+              }
+            },
+            AuthenticationConfiguration: { AccessRoleArn: $role },
+            AutoDeploymentsEnabled: true
+          }')
+
+          # Add instance configuration if role is provided
+          INST_FLAG=()
+          if [ -n "${{ env.APP_RUNNER_INSTANCE_ROLE_ARN }}" ]; then
+            INST_FLAG=( --instance-configuration "$(jq -n --arg r "${{ env.APP_RUNNER_INSTANCE_ROLE_ARN }}" '{InstanceRoleArn:$r}')" )
+          fi
+
+          # Create or update service
+          if [ "$SERVICE_ARN" = "None" ] || [ -z "$SERVICE_ARN" ]; then
+            echo "Creating App Runner service: ${SERVICE_NAME}"
+            CREATE_OUT=$(aws apprunner create-service \
+              --service-name "${SERVICE_NAME}" \
+              --source-configuration "$SRC_CFG" \
+              "${INST_FLAG[@]}")
+            SERVICE_ARN=$(echo "$CREATE_OUT" | jq -r '.Service.ServiceArn')
+          else
+            echo "Updating App Runner service: ${SERVICE_NAME}"
+            aws apprunner update-service \
+              --service-arn "$SERVICE_ARN" \
+              --source-configuration "$SRC_CFG" \
+              "${INST_FLAG[@]}"
+          fi
+
+          echo "backend_service_url=$(aws apprunner describe-service --service-arn "$SERVICE_ARN" --query 'Service.ServiceUrl' --output text)" >> $GITHUB_OUTPUT
+
+      # Deploy Frontend to App Runner
+      - name: Deploy Frontend to App Runner
+        id: frontend-deploy
+        if: contains(github.event.changes, 'frontend/') || github.event_name == 'workflow_dispatch'
+        run: |
+          set -euo pipefail
+          
+          SERVICE_NAME="${{ env.AR_FRONTEND_SERVICE }}"
+          IMAGE="${{ steps.vars.outputs.frontend_repo }}:latest"
+          
+          # Check if service exists
+          SERVICE_ARN=$(aws apprunner list-services \
+            --query "ServiceSummaryList[?ServiceName=='${SERVICE_NAME}'].ServiceArn | [0]" \
+            --output text)
+
+          # Prepare source configuration
+          SRC_CFG=$(jq -n \
+            --arg img "$IMAGE" \
+            --arg role "${{ env.APP_RUNNER_ECR_ACCESS_ROLE_ARN }}" \
+            --arg port "${{ env.FRONTEND_PORT }}" '
+          {
+            ImageRepository: {
+              ImageIdentifier: $img,
+              ImageRepositoryType: "ECR",
+              ImageConfiguration: {
+                Port: $port,
+                RuntimeEnvironmentVariables: {
+                  NODE_ENV: "production",
+                  NEXT_PUBLIC_API_URL: "https://${{ env.AR_BACKEND_SERVICE }}.${AWS_REGION}.awsapprunner.com"
+                }
+              }
+            },
+            AuthenticationConfiguration: { AccessRoleArn: $role },
+            AutoDeploymentsEnabled: true
+          }')
+
+          # Add instance configuration if role is provided
+          INST_FLAG=()
+          if [ -n "${{ env.APP_RUNNER_INSTANCE_ROLE_ARN }}" ]; then
+            INST_FLAG=( --instance-configuration "$(jq -n --arg r "${{ env.APP_RUNNER_INSTANCE_ROLE_ARN }}" '{InstanceRoleArn:$r}')" )
+          fi
+
+          # Create or update service
+          if [ "$SERVICE_ARN" = "None" ] || [ -z "$SERVICE_ARN" ]; then
+            echo "Creating App Runner service: ${SERVICE_NAME}"
+            CREATE_OUT=$(aws apprunner create-service \
+              --service-name "${SERVICE_NAME}" \
+              --source-configuration "$SRC_CFG" \
+              "${INST_FLAG[@]}")
+            SERVICE_ARN=$(echo "$CREATE_OUT" | jq -r '.Service.ServiceArn')
+          else
+            echo "Updating App Runner service: ${SERVICE_NAME}"
+            aws apprunner update-service \
+              --service-arn "$SERVICE_ARN" \
+              --source-configuration "$SRC_CFG" \
+              "${INST_FLAG[@]}"
+          fi
+
+          echo "frontend_service_url=$(aws apprunner describe-service --service-arn "$SERVICE_ARN" --query 'Service.ServiceUrl' --output text)" >> $GITHUB_OUTPUT
+
+      - name: Show Deployment URLs
+        if: always()
+        run: |
+          echo "Backend URL: ${{ steps.backend-deploy.outputs.backend_service_url || 'Not deployed' }}"
+          echo "Frontend URL: ${{ steps.frontend-deploy.outputs.frontend_service_url || 'Not deployed' }}"

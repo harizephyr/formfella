@@ -1,6 +1,4 @@
 from openai import OpenAI
-import os
-from dotenv import load_dotenv
 import base64
 from core.config.settings import settings
 client = OpenAI(api_key=settings.OPENAI_API_KEY)

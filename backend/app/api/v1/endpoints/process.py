@@ -19,6 +19,7 @@ router = APIRouter()
 from api.v1.endpoints.auth import get_email
 from fastapi import BackgroundTasks
 from time import sleep
+from schemas.process import FormQuestion,FormSubmission,ProcessResponse
 # Initialize AWS Textract client
 textract = boto3.client("textract", region_name=settings.AWS_DEFAULT_REGION, aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
@@ -28,24 +29,7 @@ OUTPUT_DIR = Path("output")
 UPLOAD_DIR.mkdir(exist_ok=True)
 OUTPUT_DIR.mkdir(exist_ok=True)
 
-# Pydantic models
-class FormQuestion(BaseModel):
-    field_id: str
-    question: str
-    field_name: str
-    current_value: str
 
-class QuestionResponse(BaseModel):
-    field_id: str
-    answer: str
-
-class FormSubmission(BaseModel):
-    responses: List[QuestionResponse]
-
-class ProcessResponse(BaseModel):
-    form_id: str
-    questions: List[FormQuestion]
-    total_questions: int
 
 # In-memory storage for form data
 form_storage: Dict[str, Dict] = {}
@@ -303,6 +287,7 @@ async def submit_answers_and_get_pdf(form_id: str, background_tasks: BackgroundT
 
     # add background task to remove this file after 2 mins
     background_tasks.add_task(remove_file, OUTPUT_DIR / f"filled_{form_id}.pdf")
+    background_tasks.add_task(remove_file, UPLOAD_DIR / f"{form_id}.pdf")
     
     # Return filled PDF
     return FileResponse(

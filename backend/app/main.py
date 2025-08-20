@@ -3,8 +3,9 @@ from api.v1.endpoints import auth
 from starlette.middleware.sessions import SessionMiddleware
 import os
 from fastapi.middleware.cors import CORSMiddleware
-from services.llm_form_filler import router as llm_form_filler_router
+# from services.llm_form_filler import router as llm_form_filler_router
 from api.v1.endpoints import payment
+from api.v1.endpoints import process
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ app.add_middleware(
 
 
 app.include_router(auth.router, prefix="/api/v1", tags=["auth"])
-app.include_router(llm_form_filler_router, prefix="", tags=["llm_form_filler"])
+app.include_router(process.router, prefix="", tags=["process"])
 app.include_router(payment.router, prefix="/api/v1", tags=["payment"])
 
 app.add_middleware(SessionMiddleware, secret_key=os.urandom(24))

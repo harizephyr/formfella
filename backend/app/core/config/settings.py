@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     STRIPE_SECRET_KEY: str
     STRIPE_WEBHOOK_SECRET: str
     STRIPE_PUBLISHABLE_KEY: str
+    COGNITO_USER_POOL_ID: str
+    COGNITO_CLIENT_ID: str
+    COGNITO_CLIENT_SECRET: str
     class Config:
         env_file = ".env.local"
         env_file_encoding = "utf-8"

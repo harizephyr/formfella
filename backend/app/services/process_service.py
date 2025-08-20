@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, APIRouter, Depends, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -10,25 +10,17 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 import fitz  # PyMuPDF
-from llm import get_llm_response
-from dotenv import load_dotenv
-
-# Load environment variables
-load_dotenv(dotenv_path="./.env.local")
-
-app = FastAPI(title="PDF Form Filler API", version="1.0.0")
-
-# Add CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
+from services.llm import get_llm_response
+from core.config.settings import settings
+from db.base import get_db
+from db.crud.credits import update_credits,get_credits
+from sqlalchemy.orm import Session
+router = APIRouter()
+from api.v1.endpoints.auth import get_email
+from fastapi import BackgroundTasks
+from time import sleep
 # Initialize AWS Textract client
-textract = boto3.client("textract")
+textract = boto3.client("textract", region_name=settings.AWS_DEFAULT_REGION, aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 
 # Create directories
 UPLOAD_DIR = Path("uploads")
@@ -230,12 +222,21 @@ class PDFFormProcessor:
 
 # API Endpoints
 
-@app.post("/api/process", response_model=List[ProcessResponse])
-async def process_pdf_and_get_questions(files: List[UploadFile] = File(...)):
+@router.post("/api/process", response_model=List[ProcessResponse])
+async def process_pdf_and_get_questions(request: Request,files: List[UploadFile] = File(...), db: Session = Depends(get_db)):
     """
     Upload multiple PDFs, process them, and return list of AI-generated questions for each.
     """
     responses = []
+    
+    # validate user credits
+    email = get_email(request)
+    credits = get_credits(email, db)["credits"]
+
+    if credits < 5:
+        raise HTTPException(status_code=400, detail="Not enough credits")
+
+
     
     for file in files:
         # Validate file
@@ -270,11 +271,18 @@ async def process_pdf_and_get_questions(files: List[UploadFile] = File(...)):
     
     if not responses:
         raise HTTPException(status_code=400, detail="No valid PDF files were processed")
+
+
+    # reduce 5 credits for each pdf processed
+    reduce_credits(5, credits, email, db)
+
+    #remove formid folder
+    shutil.rmtree(OUTPUT_DIR / form_id)
         
     return responses
 
-@app.post("/api/submit/{form_id}")
-async def submit_answers_and_get_pdf(form_id: str, submission: FormSubmission):
+@router.post("/api/submit/{form_id}")
+async def submit_answers_and_get_pdf(form_id: str, background_tasks: BackgroundTasks, submission: FormSubmission):
     """
     Submit answers and get the filled PDF for download.
     """
@@ -292,6 +300,11 @@ async def submit_answers_and_get_pdf(form_id: str, submission: FormSubmission):
     processor = PDFFormProcessor(form_id, pdf_path)
     output_path = processor.create_filled_pdf(responses)
     
+
+    # add background task to remove this file after 2 mins
+    background_tasks.add_task(remove_file, OUTPUT_DIR / f"filled_{form_id}.pdf")
+    background_tasks.add_task(remove_file, UPLOAD_DIR / f"{form_id}.pdf")
+    
     # Return filled PDF
     return FileResponse(
         path=output_path,
@@ -299,7 +312,14 @@ async def submit_answers_and_get_pdf(form_id: str, submission: FormSubmission):
         media_type="application/pdf"
     )
 
-@app.get("/")
+def remove_file(file_path):
+    try:
+        sleep(10)
+        os.remove(file_path)
+    except Exception as e:
+        print(f"Failed to remove file {file_path}: {str(e)}")
+
+@router.get("/")
 async def health_check():
     """Health check endpoint."""
     return {
@@ -311,6 +331,12 @@ async def health_check():
         }
     }
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("llm_form_filler:app", host="0.0.0.0", port=8000, reload=True)
+
+def reduce_credits(amount: int,credits: int, email: str, db):
+    """Reduce credits for processing PDF."""
+    
+    # Reduce credits
+    new_credits = max(0, credits - amount)
+    
+    # Save updated credits
+    update_credits(new_credits, email, db)

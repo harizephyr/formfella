@@ -75,7 +75,7 @@ const PurpleWhiteForm = ({ formData }) => {
         onSubmit={handleSubmit}
         className="w-full max-w-4xl p-8 space-y-6 bg-white rounded-xl shadow-lg border border-purple-100"
       >
-        <Link href="/dashboard/upload"><ChevronLeft className="w-6 h-6"/></Link>
+        <Link href="/dashboard"><ChevronLeft className="w-6 h-6"/></Link>
         <h2 className="text-2xl font-bold text-center text-gray-800">
           Contact Form
         </h2>
@@ -107,7 +107,7 @@ const PurpleWhiteForm = ({ formData }) => {
           >
             Submit
           </button>
-          <Link href="/dashboard/upload"><RotateCcw className="w-6 h-6"/></Link>
+          <Link href="/dashboard"><RotateCcw className="w-6 h-6"/></Link>
         </div>
         
       </form>
