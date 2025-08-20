@@ -17,8 +17,9 @@ authlib
 itsdangerous
 pydantic_settings
 sqlalchemy
-psycopg2
-
+# psycopg2
+psycopg2-binary
+pymupdf
 
 
 # source "D:/Projects/Microsaas/formfella/venv/Scripts/activate" && cd backend/app && python main.py

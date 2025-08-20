@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useState, useRef, Suspense } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { useSearchParams } from 'next/navigation'
@@ -54,6 +54,7 @@ export default function OtpScreen() {
   }
 
   return (
+    <Suspense fallback={<div>Loading...</div>}>
     <div className="flex flex-col items-center justify-center min-h-screen gap-6">
       <h1 className="text-2xl font-semibold">Enter OTP</h1>
       <div className="flex gap-3">
@@ -73,5 +74,6 @@ export default function OtpScreen() {
       </div>
       <Button onClick={handleVerify} className="w-40">Verify</Button>
     </div>
+    </Suspense>
   )
 }

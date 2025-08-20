@@ -11,12 +11,12 @@ from pathlib import Path
 from datetime import datetime
 import fitz  # PyMuPDF
 from services.llm import get_llm_response
-from core.config.settings import settings
-from db.base import get_db
-from db.crud.credits import update_credits,get_credits
+from app.core.config.settings import settings
+from app.db.base import get_db
+from app.db.crud.credits import update_credits,get_credits
 from sqlalchemy.orm import Session
 router = APIRouter()
-from api.v1.endpoints.auth import get_email
+from app.api.v1.endpoints.auth import get_email
 from fastapi import BackgroundTasks
 from time import sleep
 # Initialize AWS Textract client

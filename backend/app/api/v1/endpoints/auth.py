@@ -8,11 +8,11 @@ from fastapi import HTTPException,APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 # from api.v1.endpoints.payment import get_credits
-from db.crud.credits import get_credits,add_credits
-from db.base import get_db
-from db.models.credits import Credits
-from schemas.auth import SignUpRequest, AuthenticateUserRequest, ConfirmSignUpRequest
-from core.config.settings import settings
+from app.db.crud.credits import get_credits,add_credits
+from app.db.base import get_db
+from app.db.models.credits import Credits
+from app.schemas.auth import SignUpRequest, AuthenticateUserRequest, ConfirmSignUpRequest
+from app.core.config.settings import settings
 logger = logging.getLogger(__name__)
 
 class CognitoAuth:

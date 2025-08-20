@@ -1,7 +1,7 @@
 # base.py
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from core.config.settings import settings
+from app.core.config.settings import settings
 
 
 DATABASE_URL = f"postgresql+psycopg2://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"

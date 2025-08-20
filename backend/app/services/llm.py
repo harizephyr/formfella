@@ -1,6 +1,6 @@
 from openai import OpenAI
 import base64
-from core.config.settings import settings
+from app.core.config.settings import settings
 client = OpenAI(api_key=settings.OPENAI_API_KEY)
 
 # def get_llm_response(input):

@@ -1,5 +1,5 @@
 #CRUD operations for credits
-from db.models.credits import Credits
+from app.db.models.credits import Credits
 
 #Get credits
 def get_credits(email: str, db):

@@ -1,11 +1,11 @@
 from fastapi import FastAPI
-from api.v1.endpoints import auth 
+from app.api.v1.endpoints import auth 
 from starlette.middleware.sessions import SessionMiddleware
 import os
 from fastapi.middleware.cors import CORSMiddleware
 # from services.llm_form_filler import router as llm_form_filler_router
-from api.v1.endpoints import payment
-from api.v1.endpoints import process
+from app.api.v1.endpoints import payment
+from app.api.v1.endpoints import process
 
 app = FastAPI()
 

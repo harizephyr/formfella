@@ -10,16 +10,16 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 import fitz  # PyMuPDF
-from services.llm import get_llm_response
-from core.config.settings import settings
-from db.base import get_db
-from db.crud.credits import update_credits,get_credits
+from app.services.llm import get_llm_response
+from app.core.config.settings import settings
+from app.db.base import get_db
+from app.db.crud.credits import update_credits,get_credits
 from sqlalchemy.orm import Session
 router = APIRouter()
-from api.v1.endpoints.auth import get_email
+from app.api.v1.endpoints.auth import get_email
 from fastapi import BackgroundTasks
 from time import sleep
-from schemas.process import FormQuestion,FormSubmission,ProcessResponse
+from app.schemas.process import FormQuestion,FormSubmission,ProcessResponse
 # Initialize AWS Textract client
 textract = boto3.client("textract", region_name=settings.AWS_DEFAULT_REGION, aws_access_key_id=settings.AWS_ACCESS_KEY_ID, aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY)
 

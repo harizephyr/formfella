@@ -7,12 +7,12 @@ import os
 from typing import Optional
 import logging
 from dotenv import load_dotenv
-from core.config.settings import settings
-from db.crud.credits import add_credits
-from api.v1.endpoints.auth import get_email
-from db.base import get_db
+from app.core.config.settings import settings
+from app.db.crud.credits import add_credits
+from app.api.v1.endpoints.auth import get_email
+from app.db.base import get_db
 from sqlalchemy.orm import Session
-from schemas.payment import PaymentIntentCreate, CustomerCreate, CheckoutSessionCreate,SubscriptionCreate
+from app.schemas.payment import PaymentIntentCreate, CustomerCreate, CheckoutSessionCreate,SubscriptionCreate
 # Load environment variables
 load_dotenv()
 
