@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useAnimation, useMotionValue, useTransform, PanInfo } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +21,7 @@ import Link from "next/link";
 import { Navigation } from "@/components/navigation";
 import { ThemeToggle } from "@/components/theme-toggle";
 import Logo from "@/components/logo";
+import ComparisonSlider from "@/components/comparison-slider";
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -35,6 +37,43 @@ const staggerChildren = {
 };
 
 export default function Home() {
+  // Slider state and refs
+  const sliderRef = useRef(null);
+  const containerRef = useRef(null);
+  const [sliderWidth, setSliderWidth] = useState(0);
+  const controls = useAnimation();
+  const x = useMotionValue(0);
+  const width = useTransform(x, [0, 100], ['0%', '100%']);
+
+  // Initialize slider width on mount and window resize
+  useEffect(() => {
+    const updateSliderWidth = () => {
+      if (containerRef.current) {
+        setSliderWidth(containerRef.current.offsetWidth);
+      }
+    };
+
+    updateSliderWidth();
+    window.addEventListener('resize', updateSliderWidth);
+    return () => window.removeEventListener('resize', updateSliderWidth);
+  }, []);
+
+  // Handle drag on slider
+  const handleDrag = (event, info) => {
+    const newX = x.get();
+    if (newX >= 0 && newX <= 100) {
+      x.set(newX + (info.delta.x / sliderWidth) * 100);
+    }
+  };
+
+  // Handle drag end to ensure slider stays within bounds
+  const handleDragEnd = (event, info) => {
+    let newX = x.get();
+    if (newX < 0) newX = 0;
+    if (newX > 100) newX = 100;
+    x.set(newX);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-background/80">
       {/* Background Pattern */}
@@ -120,6 +159,9 @@ export default function Home() {
           </motion.div>
         </div>
       </section>
+
+      {/* Before & After Section */}
+      <ComparisonSlider />
 
       {/* Features Section */}
       <section className="py-24 px-4" id="features">
@@ -439,7 +481,7 @@ export default function Home() {
               <Logo />
             </div>
             <p className="text-muted-foreground">
-              © 2024 FormFella. All rights reserved. Built for productivity.
+              &copy; 2024 FormFella. All rights reserved. Built for productivity.
             </p>
             <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
               <Link href="/privacy" className="hover:text-foreground">Privacy Policy</Link>

@@ -77,7 +77,7 @@ const PurpleWhiteForm = ({ formData }) => {
       >
         <Link href="/dashboard"><ChevronLeft className="w-6 h-6"/></Link>
         <h2 className="text-2xl font-bold text-center text-gray-800">
-          Contact Form
+          Form
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
