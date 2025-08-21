@@ -15,6 +15,9 @@ const Success = () => {
           ?.split('=')[1]}`, {
           method: "GET",
           headers: {
+            "Authorization": `Bearer ${document.cookie.split('; ')
+            .find(row => row.startsWith('access_token='))
+            ?.split('=')[1]}`,
             "Content-Type": "application/json",
           },
         });
