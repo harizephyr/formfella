@@ -310,7 +310,9 @@ export default function Home() {
                 period: "forever",
                 description: "Perfect for getting started",
                 features: [
-                  "5 PDF forms per month",
+                  "No credit card required",
+                  "No hidden fees",
+                  "50 credits for 1 month",
                   "Basic field detection",
                   "Standard processing",
                   "Email support"
@@ -320,16 +322,16 @@ export default function Home() {
               },
               {
                 name: "Pro",
-                price: "$29",
+                price: "$9.99",
                 period: "per month",
                 description: "For professionals and small teams",
                 features: [
-                  "Unlimited PDF forms",
-                  "Advanced AI analysis",
-                  "Priority processing",
-                  "Template library",
-                  "API access",
-                  "Priority support"
+                  "500 credits for 1 month",
+                  "Advanced AI analysis - coming soon",
+                  "Priority processing - coming soon",
+                  "Template library - coming soon",
+                  "API access - coming soon",
+                  "Priority support - coming soon"
                 ],
                 buttonText: "Start Pro Trial",
                 popular: true
@@ -341,11 +343,11 @@ export default function Home() {
                 description: "For large organizations",
                 features: [
                   "Everything in Pro",
-                  "Custom integrations",
-                  "Dedicated support",
-                  "SLA guarantees",
-                  "On-premise deployment",
-                  "Advanced analytics"
+                  "Custom integrations - coming soon",
+                  "Dedicated support - coming soon",
+                  "SLA guarantees - coming soon",
+                  "On-premise deployment - coming soon",
+                  "Advanced analytics - coming soon"
                 ],
                 buttonText: "Contact Sales",
                 popular: false
@@ -419,7 +421,7 @@ export default function Home() {
             </motion.p>
             <motion.div variants={fadeInUp}>
               <Button asChild size="lg" className="bg-white text-blue-600 hover:bg-white/90 text-lg px-8 py-6">
-                <Link href="/dashboard">
+                <Link href="/signup">
                   Start Your Free Trial
                   <ArrowRight className="ml-2 w-5 h-5" />
                 </Link>
