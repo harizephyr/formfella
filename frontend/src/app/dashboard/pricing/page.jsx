@@ -35,8 +35,8 @@ const Pricing = () => {
             "amount": 999,
             "currency": "usd",
             "customer_email": "test@gmail.com",
-            "success_url": `/dashboard/pricing/success`,
-            "cancel_url": `/dashboard/pricing/fail`,
+            "success_url": `https://forms.laphic.com/dashboard/pricing/success`,
+            "cancel_url": `https://forms.laphic.com/dashboard/pricing/fail`,
             "mode": "payment"
           }),
         });
